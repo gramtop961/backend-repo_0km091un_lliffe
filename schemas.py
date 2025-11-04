@@ -11,16 +11,11 @@ Model name is converted to lowercase for the collection name:
 - BlogPost -> "blogs" collection
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, List, Literal
 
-# Example schemas (replace with your own):
-
+# Example schemas (kept for reference)
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
     name: str = Field(..., description="Full name")
     email: str = Field(..., description="Email address")
     address: str = Field(..., description="Address")
@@ -28,21 +23,35 @@ class User(BaseModel):
     is_active: bool = Field(True, description="Whether user is active")
 
 class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
     title: str = Field(..., description="Product title")
     description: Optional[str] = Field(None, description="Product description")
     price: float = Field(..., ge=0, description="Price in dollars")
     category: str = Field(..., description="Product category")
     in_stock: bool = Field(True, description="Whether product is in stock")
 
-# Add your own schemas here:
-# --------------------------------------------------
+# Bits & Bites: Order-related schemas
+class OrderItem(BaseModel):
+    name: str
+    price: int = Field(..., ge=0)
+    qty: int = Field(..., ge=1)
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Order(BaseModel):
+    customer_name: str
+    customer_mobile: str = Field(..., description="10-digit mobile number")
+    items: List[OrderItem]
+    subtotal: int = Field(..., ge=0)
+    discount: int = Field(0, ge=0)
+    total: int = Field(..., ge=0)
+    payment_method: Literal["cod", "upi"]
+    coupon_code: Optional[str] = None
+
+    @field_validator("customer_mobile")
+    @classmethod
+    def validate_mobile(cls, v: str) -> str:
+        digits = ''.join([ch for ch in v if ch.isdigit()])
+        if len(digits) != 10:
+            raise ValueError("Mobile must be 10 digits")
+        return digits
+
+# Note: Each class name maps to a collection of the same lowercase name.
+# For example, Order -> "order" collection.
